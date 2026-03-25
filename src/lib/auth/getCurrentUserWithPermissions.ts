@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 
 export async function getCurrentUserWithPermissions() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const {
     data: { user },
@@ -40,5 +40,16 @@ export async function getCurrentUserWithPermissions() {
   return {
     user: dbUser,
     permissions,
+  }
+
+  if (role.name === 'super_admin') {
+    const { data: allPermissions } = await admin
+      .from('permissions')
+      .select('code')
+  
+    return {
+      user,
+      permissions: allPermissions.map(p => p.code)
+    }
   }
 }

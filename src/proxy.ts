@@ -4,8 +4,25 @@ import { createServerClient } from '@supabase/ssr'
 
 export async function proxy(req: NextRequest) {
   let res = NextResponse.next()
+  const pathname = req.nextUrl.pathname
 
-  const supabase = createServerClient(
+  const isPublicAsset =
+    pathname.startsWith('/branding/') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.webmanifest' ||
+    /\.(png|jpg|jpeg|gif|webp|svg|ico|txt|xml|webmanifest)$/i.test(pathname)
+
+  if (isPublicAsset) {
+    return res
+  }
+
+  if (pathname.startsWith('/api/')) {
+    return res
+  }
+
+  const supabase = await createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -25,13 +42,21 @@ export async function proxy(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isAuthPage = req.nextUrl.pathname.startsWith('/login')
-
-  if (!user && !isAuthPage) {
+  const publicRoutes = [
+    '/login',
+    '/forgot-password',
+    '/reset-password',
+  ]
+  
+  const isPublicRoute = publicRoutes.some(route =>
+    pathname.startsWith(route)
+  )
+  
+  if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
-
-  if (user && isAuthPage) {
+  
+  if (user && pathname.startsWith('/login')) {
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
@@ -39,7 +64,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

@@ -3,30 +3,36 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
 )
 
 interface AuditParams {
+  actor_user_id: string
   action: string
-  entity: string
-  entity_id: string
+  entity_type: string
+  entity_id?: string | null
   metadata?: Record<string, any>
 }
 
 export async function logAudit({
+  actor_user_id,
   action,
-  entity,
-  entity_id,
+  entity_type,
+  entity_id = null,
   metadata = {},
 }: AuditParams) {
-  const { error } = await supabaseAdmin
-    .from('audit_logs')
-    .insert({
-      action,
-      entity,
-      entity_id,
-      metadata,
-    })
+  const { error } = await supabaseAdmin.from('audit_logs').insert({
+    actor_user_id,
+    action,
+    entity_type,
+    entity_id,
+    metadata,
+  })
 
   if (error) {
     console.error('Audit log failed:', error.message)

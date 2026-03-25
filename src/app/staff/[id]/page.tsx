@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import DocumentUploadForm from '@/components/documents/DocumentUploadForm'
 import DocumentList from '@/components/documents/DocumentList'
 import PassportUpload from '@/components/students/PassportUpload'
-
 import {
   getOwnerDocuments,
   getDocumentTypes,
@@ -14,7 +13,7 @@ interface PageProps {
 }
 
 async function getStaff(id: string) {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const { data } = await supabase
     .from('staff')
@@ -41,23 +40,28 @@ async function getStaff(id: string) {
 
 export default async function StaffProfilePage({ params }: PageProps) {
   const { id } = await params
-  const supabase = createServerClient()
 
   const staff = await getStaff(id)
   if (!staff) notFound()
 
-  const ownerId = staff.owners.id
+  const owner = Array.isArray(staff.owners) ? staff.owners[0] : staff.owners
+  if (!owner) notFound()
 
-  // ✅ Generate signed URL (ONLY ONCE, CORRECT CLIENT)
+  const ownerId = owner.id
+
   let photoUrl: string | null = null
 
-  if (staff.owners.photo_url) {
-    const { data, error } = await supabase.storage
+  if (owner.photo_url) {
+    const admin = createAdminClient()
+
+    const { data, error } = await admin.storage
       .from('documents')
-      .createSignedUrl(staff.owners.photo_url, 60 * 60)
+      .createSignedUrl(owner.photo_url, 60 * 60)
 
     if (!error) {
       photoUrl = data?.signedUrl || null
+    } else {
+      console.error('Failed to create staff passport signed URL:', error.message)
     }
   }
 
@@ -66,14 +70,9 @@ export default async function StaffProfilePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 via-white to-amber-100">
-
       <div className="max-w-7xl mx-auto px-8 py-12">
-
         <div className="rounded-3xl shadow-2xl overflow-hidden border border-sky-200">
-
-          {/* HEADER */}
           <div className="bg-sky-700 px-10 py-8 text-white flex justify-between items-center">
-
             <div>
               <h1 className="text-3xl font-bold tracking-wide">
                 Staff Profile
@@ -87,29 +86,23 @@ export default async function StaffProfilePage({ params }: PageProps) {
               ownerId={ownerId}
               currentPhotoUrl={photoUrl}
             />
-
           </div>
 
-          {/* BODY */}
           <div className="bg-white px-10 py-12">
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-
-              {/* PERSONAL */}
               <div className="rounded-xl border border-sky-200 bg-sky-50 p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-sky-700 mb-4 border-b border-sky-200 pb-2">
                   Personal Information
                 </h2>
 
                 <div className="space-y-3 text-gray-800 text-sm">
-                  <p><span className="font-semibold text-amber-700">Full Name:</span> {staff.owners.full_name}</p>
-                  <p><span className="font-semibold text-amber-700">Surname:</span> {staff.owners.surname}</p>
-                  <p><span className="font-semibold text-amber-700">Other Names:</span> {staff.owners.other_names}</p>
-                  <p><span className="font-semibold text-amber-700">Owner Key:</span> {staff.owners.owner_key}</p>
+                  <p><span className="font-semibold text-amber-700">Full Name:</span> {owner.full_name}</p>
+                  <p><span className="font-semibold text-amber-700">Surname:</span> {owner.surname}</p>
+                  <p><span className="font-semibold text-amber-700">Other Names:</span> {owner.other_names}</p>
+                  <p><span className="font-semibold text-amber-700">Owner Key:</span> {owner.owner_key}</p>
                 </div>
               </div>
 
-              {/* EMPLOYMENT */}
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-amber-700 mb-4 border-b border-amber-200 pb-2">
                   Employment Information
@@ -122,12 +115,9 @@ export default async function StaffProfilePage({ params }: PageProps) {
                   <p><span className="font-semibold text-sky-700">Status:</span> {staff.employment_status}</p>
                 </div>
               </div>
-
             </div>
 
-            {/* DOCUMENTS */}
             <div className="mt-14 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-
               <div className="bg-sky-50 border border-sky-200 rounded-xl p-6 shadow-sm">
                 <DocumentUploadForm
                   ownerId={ownerId}
@@ -138,15 +128,10 @@ export default async function StaffProfilePage({ params }: PageProps) {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm">
                 <DocumentList documents={documents} />
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   )
 }

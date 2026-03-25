@@ -20,7 +20,7 @@ async function getStudents() {
     throw new Error(error.message)
   }
 
-  return data
+  return data ?? []
 }
 
 export default async function StudentsPage() {
@@ -28,7 +28,16 @@ export default async function StudentsPage() {
 
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6 bg-white shadow rounded">
-      <h1 className="text-2xl font-bold mb-6">Students Registry</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Students Registry</h1>
+
+        <Link
+          href="/students/new"
+          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded"
+        >
+          + Add Student
+        </Link>
+      </div>
 
       <table className="w-full border-collapse border">
         <thead>

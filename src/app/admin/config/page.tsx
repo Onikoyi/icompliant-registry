@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export default function ConfigPage() {
   const [configs, setConfigs] = useState<any[]>([])
@@ -9,65 +9,155 @@ export default function ConfigPage() {
     code: '',
     label: '',
   })
-
   const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [permissions, setPermissions] = useState<string[]>([])
+
+  const canManageConfig = useMemo(
+    () => permissions.includes('config.manage'),
+    [permissions]
+  )
 
   async function fetchConfigs() {
-    const res = await fetch('/api/config')
+    const res = await fetch('/api/config', { cache: 'no-store' })
     const data = await res.json()
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to load configs')
+    }
+
     setConfigs(data)
   }
 
   useEffect(() => {
-    fetchConfigs()
+    async function init() {
+      setPageLoading(true)
+      setError('')
+
+      try {
+        const meRes = await fetch('/api/auth/me', { cache: 'no-store' })
+        const meData = await meRes.json()
+
+        if (!meRes.ok) {
+          throw new Error(meData.error || 'Failed to load current user')
+        }
+
+        setPermissions(meData.permissions || [])
+
+        if ((meData.permissions || []).includes('config.manage')) {
+          await fetchConfigs()
+        }
+      } catch (err: any) {
+        setError(err.message || 'Something went wrong')
+      } finally {
+        setPageLoading(false)
+      }
+    }
+
+    init()
   }, [])
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setError('')
 
-    const res = await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
 
-    setLoading(false)
+      const data = await res.json()
 
-    if (res.ok) {
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save config')
+      }
+
       setForm({ category: '', code: '', label: '' })
-      fetchConfigs()
+      await fetchConfigs()
+    } catch (err: any) {
+      setError(err.message || 'Failed to save config')
+    } finally {
+      setLoading(false)
     }
   }
 
   async function handleDelete(id: string) {
-    await fetch('/api/config', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
+    setError('')
 
-    fetchConfigs()
+    try {
+      const res = await fetch('/api/config', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete config')
+      }
+
+      await fetchConfigs()
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete config')
+    }
+  }
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-100 via-white to-amber-100">
+        <div className="max-w-6xl mx-auto px-8 py-12">
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-sky-200">
+            <h1 className="text-2xl font-bold text-sky-700 mb-6">
+              System Configuration
+            </h1>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!canManageConfig) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-100 via-white to-amber-100">
+        <div className="max-w-4xl mx-auto px-8 py-12">
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-red-200">
+            <h1 className="text-2xl font-bold text-red-700 mb-3">
+              Access Denied
+            </h1>
+            <p className="text-gray-700">
+              You do not have permission to manage system configuration.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 via-white to-amber-100">
-
       <div className="max-w-6xl mx-auto px-8 py-12">
-
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-sky-200">
-
           <h1 className="text-2xl font-bold text-sky-700 mb-6">
             System Configuration
           </h1>
 
-          {/* FORM */}
-          <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-4 mb-8">
+          {error ? (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+              {error}
+            </div>
+          ) : null}
 
+          <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-4 mb-8">
             <input
               name="category"
               placeholder="Category (e.g. employment_type)"
@@ -101,12 +191,9 @@ export default function ConfigPage() {
             >
               {loading ? 'Saving...' : 'Add Config'}
             </button>
-
           </form>
 
-          {/* TABLE */}
           <table className="w-full border border-gray-200">
-
             <thead>
               <tr className="bg-sky-50 text-left">
                 <th className="p-3 border">Category</th>
@@ -132,14 +219,18 @@ export default function ConfigPage() {
                   </td>
                 </tr>
               ))}
+
+              {configs.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-gray-500">
+                    No configuration values found.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
-
           </table>
-
         </div>
-
       </div>
-
     </div>
   )
 }
