@@ -8,7 +8,7 @@ function normalizeText(v: any): string | null {
 }
 
 /**
- * Always derive the fileId from the URL. This avoids Next's async params behavior.
+ * Always derive fileId from URL to avoid Next async params behavior.
  * URL shape: /api/admin/files/{fileId}/documents
  */
 function getFileIdFromUrl(req: Request): string {
@@ -34,16 +34,14 @@ export async function GET(req: Request) {
 
     const admin = createAdminClient()
 
-    // 1) Documents already inside this file
+    // 1) Documents already inside this file (include versions + type)
     let inFileQuery = admin
       .from('documents')
       .select(
         `
         id,
-        owner_id,
         document_type_id,
         title,
-        description,
         status,
         source,
         file_id,
@@ -53,11 +51,19 @@ export async function GET(req: Request) {
           id,
           name,
           owner_type
+        ),
+        document_versions (
+          id,
+          file_path,
+          version_number,
+          created_at
         )
       `
       )
       .eq('file_id', fileId)
       .order('created_at', { ascending: false })
+      // ensure latest version is first in nested array
+      .order('version_number', { referencedTable: 'document_versions', ascending: false })
       .limit(limit)
 
     if (q) {
@@ -67,7 +73,7 @@ export async function GET(req: Request) {
     const { data: inFile, error: inFileErr } = await inFileQuery
     if (inFileErr) return NextResponse.json({ error: inFileErr.message }, { status: 500 })
 
-    // 2) Optional: unassigned docs to assign
+    // 2) Optional: unassigned docs (include versions + type)
     let unassigned: any[] = []
     if (includeUnassigned) {
       let unassignedQuery = admin
@@ -75,10 +81,8 @@ export async function GET(req: Request) {
         .select(
           `
           id,
-          owner_id,
           document_type_id,
           title,
-          description,
           status,
           source,
           file_id,
@@ -88,11 +92,18 @@ export async function GET(req: Request) {
             id,
             name,
             owner_type
+          ),
+          document_versions (
+            id,
+            file_path,
+            version_number,
+            created_at
           )
         `
         )
         .is('file_id', null)
         .order('created_at', { ascending: false })
+        .order('version_number', { referencedTable: 'document_versions', ascending: false })
         .limit(limit)
 
       if (q) {

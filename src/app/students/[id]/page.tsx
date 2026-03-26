@@ -3,6 +3,7 @@ import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import DocumentUploadForm from '@/components/documents/DocumentUploadForm'
 import DocumentList from '@/components/documents/DocumentList'
 import PassportUpload from '@/components/students/PassportUpload'
+import { getOwnerComplianceSummary } from '@/lib/queries/compliance'
 import {
   getOwnerDocuments,
   getDocumentTypes,
@@ -49,6 +50,8 @@ export default async function StudentProfilePage({ params }: PageProps) {
   if (!owner) notFound()
 
   const ownerId = owner.id
+
+  const compliance = await getOwnerComplianceSummary(ownerId, 'student')
 
   let photoUrl: string | null = null
 
@@ -97,12 +100,50 @@ export default async function StudentProfilePage({ params }: PageProps) {
               
           </div>
 
+          <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+    <h2 className="text-lg font-semibold text-emerald-800 mb-2">
+      Compliance Summary
+    </h2>
+    <p className="text-sm text-emerald-900">
+      Approved mandatory documents: <span className="font-bold">{compliance.approved_count}</span> /{' '}
+      <span className="font-bold">{compliance.required_count}</span>
+    </p>
+    <p className="text-sm text-emerald-900 mt-1">
+      Uploaded (any status): <span className="font-bold">{compliance.uploaded_count}</span>
+    </p>
+    <p className="text-sm text-emerald-900 mt-1">
+      Missing mandatory: <span className="font-bold">{compliance.missing_count}</span>
+    </p>
+  </div>
+
+  <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm md:col-span-2">
+    <h3 className="text-sm font-semibold text-amber-800 mb-2">
+      Missing Mandatory Documents (Top)
+    </h3>
+    {compliance.missing.length === 0 ? (
+      <p className="text-sm text-amber-900">None — student is fully compliant.</p>
+    ) : (
+      <ul className="list-disc ml-5 text-sm text-amber-900 space-y-1">
+        {compliance.missing.map((m) => (
+          <li key={m.id}>{m.name}</li>
+        ))}
+      </ul>
+    )}
+    <p className="text-xs text-amber-700 mt-3">
+      Note: “Missing” means no <b>approved</b> document exists yet for that mandatory type.
+    </p>
+  </div>
+</div>
+
           <div className="bg-white px-10 py-12">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <div className="rounded-xl border border-sky-200 bg-sky-50 p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-sky-700 mb-4 border-b border-sky-200 pb-2">
                   Personal Information
                 </h2>
+
+                
 
                 <div className="space-y-3 text-gray-800 text-sm">
                   <p><span className="font-semibold text-amber-700">Full Name:</span> {owner.full_name}</p>

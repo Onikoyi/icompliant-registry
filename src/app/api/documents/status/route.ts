@@ -17,13 +17,10 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { document_id, status } = body
+    const { document_id, status, reason } = body
 
     if (!document_id || !status) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const { user, permissions } = await getCurrentUserWithPermissions()
@@ -36,71 +33,50 @@ export async function POST(req: Request) {
           : null
 
     if (!requiredPermission) {
-      return NextResponse.json(
-        { error: 'Invalid status value' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
     }
 
-    const allowed = permissions.includes(requiredPermission)
-
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Unauthorized action' },
-        { status: 403 }
-      )
+    if (!permissions.includes(requiredPermission)) {
+      return NextResponse.json({ error: 'Unauthorized action' }, { status: 403 })
     }
 
     const { error } = await supabaseAdmin
       .from('documents')
-      .update({ status })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', document_id)
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // ✅ Fix: entity_type (not entity)
     await logAudit({
       actor_user_id: user.id,
       action: 'DOCUMENT_STATUS_UPDATE',
-      entity: 'document',
+      entity_type: 'document',
       entity_id: document_id,
-      metadata: { status },
+      metadata: { status, reason: reason || null },
     })
 
-    await supabaseAdmin
-      .from('document_workflow_logs')
-      .insert({
-        document_id,
-        action: status,
-        performed_by: user.id,
-        metadata: {
-          status,
-        },
-      })
-
-    return NextResponse.json({
-      success: true,
-      status,
+    await supabaseAdmin.from('document_workflow_logs').insert({
+      document_id,
+      action: status,
+      performed_by: user.id,
+      metadata: {
+        status,
+        reason: reason || null,
+      },
     })
+
+    return NextResponse.json({ success: true, status })
   } catch (error: any) {
     console.error(error)
 
     const message = error?.message || 'Internal server error'
-
     if (message === 'Unauthorized') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

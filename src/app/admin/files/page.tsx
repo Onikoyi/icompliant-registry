@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-type Department = { id: string; name: string; code: string }
+type Department = { id: string; name: string; code: string; is_active?: boolean }
 
 type FileRow = {
   id: string
@@ -52,6 +52,8 @@ export default function FilesRegistryPage() {
   const [permissions, setPermissions] = useState<string[]>([])
 
   const [files, setFiles] = useState<FileRow[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+
   const [q, setQ] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
@@ -77,7 +79,12 @@ export default function FilesRegistryPage() {
     const res = await fetch(`/api/admin/files?${params.toString()}`, { cache: 'no-store' })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to load files')
+
     setFiles(data.files || [])
+
+    // Departments for dropdown (active only)
+    const deps = (data.departments || []) as Department[]
+    setDepartments(deps.filter((d) => d.is_active !== false))
   }
 
   async function init() {
@@ -134,7 +141,10 @@ export default function FilesRegistryPage() {
         description: form.description.trim() ? form.description.trim() : null,
         owner_kind: form.owner_kind,
         owner_id: form.owner_id.trim() ? form.owner_id.trim() : null,
-        department_id: form.department_id.trim() ? form.department_id.trim() : null,
+
+        // ✅ department_id comes from dropdown; empty = null
+        department_id: form.department_id ? form.department_id : null,
+
         is_active: form.is_active,
       }
 
@@ -238,18 +248,25 @@ export default function FilesRegistryPage() {
             <input
               value={form.owner_id}
               onChange={(e) => setForm((s) => ({ ...s, owner_id: e.target.value }))}
-              placeholder="Owner ID (optional UUID)"
+              placeholder="Owner ID (optional UUID) — will be improved later"
               className="border p-2 rounded col-span-1"
               disabled={!canManage || saving}
             />
 
-            <input
+            {/* ✅ Department dropdown */}
+            <select
               value={form.department_id}
               onChange={(e) => setForm((s) => ({ ...s, department_id: e.target.value }))}
-              placeholder="Department ID (optional UUID)"
               className="border p-2 rounded col-span-1"
               disabled={!canManage || saving}
-            />
+            >
+              <option value="">No Department (Global)</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.code})
+                </option>
+              ))}
+            </select>
 
             <label className="flex items-center gap-2 text-sm text-gray-700 border p-2 rounded col-span-3">
               <input
@@ -324,13 +341,14 @@ export default function FilesRegistryPage() {
                     </span>
                   </td>
                   <td className="p-3 border">
-                    {f.id && (
-                        <a href={`/admin/files/${f.id}`} className="text-sky-700 hover:underline text-sm">
+                    {f.id ? (
+                      <a href={`/admin/files/${f.id}`} className="text-sky-700 hover:underline text-sm">
                         Open
-                        </a>
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
                     )}
-                    {!f.id && <span className="text-gray-400 text-sm">—</span>}
-                    </td>
+                  </td>
                 </tr>
               ))}
               {files.length === 0 && (

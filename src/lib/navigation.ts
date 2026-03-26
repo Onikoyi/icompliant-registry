@@ -20,4 +20,6 @@ export const NAV_ITEMS = [
   { label: 'Departments', path: '/admin/setup/departments', permission: 'org.manage' },
 
   { label: 'Files Registry', path: '/admin/files', permission: 'file.view' },
+  
+  { label: 'Approval Queue', path: '/admin/documents/approvals', permission: 'document.approve' },
 ]

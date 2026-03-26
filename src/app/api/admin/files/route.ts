@@ -27,6 +27,7 @@ export async function GET(req: Request) {
 
     const admin = createAdminClient()
 
+    // ✅ Files query
     let query = admin
       .from('files')
       .select(
@@ -44,25 +45,30 @@ export async function GET(req: Request) {
     if (active === 'false') query = query.eq('is_active', false)
 
     if (q) {
-      // Search by reference_code or title (ilike)
       query = query.or(`reference_code.ilike.%${q}%,title.ilike.%${q}%`)
     }
-    
 
-    const { data, error } = await query
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data: files, error: filesErr } = await query
+    if (filesErr) return NextResponse.json({ error: filesErr.message }, { status: 500 })
 
-    return NextResponse.json({ files: data || [] })
-  } 
-  
-  
-  catch (err: any) {
+    // ✅ Departments query (for dropdown)
+    const { data: departments, error: depErr } = await admin
+      .from('departments')
+      .select('id, name, code, is_active')
+      .order('name', { ascending: true })
+
+    if (depErr) return NextResponse.json({ error: depErr.message }, { status: 500 })
+
+    return NextResponse.json({
+      files: files || [],
+      departments: departments || [],
+    })
+  } catch (err: any) {
     const msg = err?.message || 'Internal server error'
     if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (msg.startsWith('Forbidden:')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     return NextResponse.json({ error: msg }, { status: 500 })
   }
-  
 }
 
 export async function POST(req: Request) {
@@ -83,7 +89,10 @@ export async function POST(req: Request) {
     if (!reference_code) return NextResponse.json({ error: 'reference_code is required' }, { status: 400 })
     if (!title) return NextResponse.json({ error: 'title is required' }, { status: 400 })
     if (!OWNER_KINDS.has(owner_kind)) {
-      return NextResponse.json({ error: 'owner_kind must be one of general|department|student|staff' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'owner_kind must be one of general|department|student|staff' },
+        { status: 400 }
+      )
     }
 
     const admin = createAdminClient()

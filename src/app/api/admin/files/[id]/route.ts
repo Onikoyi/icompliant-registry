@@ -3,6 +3,40 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
+
+export async function GET(req: Request) {
+  try {
+    await requirePermission('file.view')
+
+    // ✅ Always extract id from URL (avoid Next async params issue)
+    const url = new URL(req.url)
+    const parts = url.pathname.split('/').filter(Boolean)
+    const idx = parts.findIndex((p) => p === 'files')
+    const id = String(idx >= 0 ? parts[idx + 1] : '').trim()
+
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    const admin = createAdminClient()
+
+    const { data, error } = await admin
+      .from('files')
+      .select('id, reference_code, title, description, is_active')
+      .eq('id', id)
+      .single()
+
+    if (error || !data) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ file: data })
+  } catch (err: any) {
+    const msg = err?.message || 'Internal server error'
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (msg.startsWith('Forbidden:')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
 function normalizeText(v: any): string | null {
   const s = String(v ?? '').trim()
   return s ? s : null
