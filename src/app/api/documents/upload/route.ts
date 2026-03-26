@@ -13,6 +13,11 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false } }
 )
 
+/**
+ * NOTE:
+ * This route uses service role, so it must do its own permission checks if exposed publicly.
+ * Right now it trusts caller-provided owner_id. That can be tightened later with RBAC.
+ */
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
@@ -22,8 +27,26 @@ export async function POST(req: Request) {
     const document_type_id = formData.get('document_type_id') as string | null
     const source = (formData.get('source') as string) || 'system_upload'
 
+    // Optional: pass actor_user_id from client (recommended)
+    const actor_user_id = (formData.get('actor_user_id') as string) || null
+
     if (!file || !owner_id || !document_type_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // ✅ Validate document type exists and is active
+    const { data: docType, error: docTypeErr } = await supabaseAdmin
+      .from('document_types')
+      .select('id, is_active, requires_approval')
+      .eq('id', document_type_id)
+      .maybeSingle()
+
+    if (docTypeErr) {
+      return NextResponse.json({ error: docTypeErr.message }, { status: 500 })
+    }
+
+    if (!docType || docType.is_active === false) {
+      return NextResponse.json({ error: 'Invalid or inactive document type' }, { status: 400 })
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -38,7 +61,7 @@ export async function POST(req: Request) {
     const ext = file.name.split('.').pop()
     const storagePath = `${owner_id}/${randomUUID()}.${ext}`
 
-    // 🔹 Upload file
+    // Upload file
     const { error: uploadError } = await supabaseAdmin.storage
       .from(DOCUMENT_BUCKET)
       .upload(storagePath, buffer, {
@@ -50,7 +73,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 })
     }
 
-    // 🔹 Check if document exists
+    // Check if document exists
     const { data: existingDoc } = await supabaseAdmin
       .from('documents')
       .select('id')
@@ -63,6 +86,9 @@ export async function POST(req: Request) {
     if (existingDoc) {
       documentId = existingDoc.id
     } else {
+      // ✅ Set status based on requires_approval
+      const initialStatus = docType.requires_approval ? 'pending' : 'approved'
+
       const { data: newDoc, error: docError } = await supabaseAdmin
         .from('documents')
         .insert({
@@ -70,7 +96,7 @@ export async function POST(req: Request) {
           document_type_id,
           title: file.name,
           source,
-          status: 'pending',
+          status: initialStatus,
         })
         .select()
         .single()
@@ -82,7 +108,7 @@ export async function POST(req: Request) {
       documentId = newDoc.id
     }
 
-    // 🔹 Get latest version
+    // Get latest version
     const { data: versions } = await supabaseAdmin
       .from('document_versions')
       .select('version_number')
@@ -90,11 +116,9 @@ export async function POST(req: Request) {
       .order('version_number', { ascending: false })
       .limit(1)
 
-    const nextVersion = versions?.[0]?.version_number
-      ? versions[0].version_number + 1
-      : 1
+    const nextVersion = versions?.[0]?.version_number ? versions[0].version_number + 1 : 1
 
-    // 🔹 Insert new version
+    // Insert new version
     const { error: versionError } = await supabaseAdmin
       .from('document_versions')
       .insert({
@@ -107,9 +131,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: versionError.message }, { status: 500 })
     }
 
+    // ✅ Audit log: align with src/lib/audit.ts signature
+    // If actor_user_id isn't supplied, we still log with a placeholder to avoid crashing.
+    // Recommended: pass actor_user_id from server-authenticated context later.
     await logAudit({
+      actor_user_id: actor_user_id || owner_id, // fallback (not ideal, but prevents null)
       action: 'DOCUMENT_UPLOAD',
-      entity: 'document',
+      entity_type: 'document',
       entity_id: documentId,
       metadata: {
         owner_id,

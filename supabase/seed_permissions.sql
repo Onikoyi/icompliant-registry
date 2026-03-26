@@ -17,6 +17,10 @@ insert into permissions (code, description) values
 ('user.manage', 'Manage users'),
 ('role.manage', 'Manage roles'),
 ('role.assign', 'Assign roles'),
-('config.manage', 'Manage system configuration')
+('config.manage', 'Manage system configuration'),
+('document_type.manage', 'Manage document types'),
+('org.manage', 'Manage campuses, faculties and departments'),
+('file.view', 'View registry files'),
+('file.manage', 'Manage registry files'),
 
 on conflict (code) do nothing;
