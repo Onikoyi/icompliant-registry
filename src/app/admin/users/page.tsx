@@ -30,6 +30,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
   const [newEmail, setNewEmail] = useState('')
 const [newPassword, setNewPassword] = useState('')
+const [showNewPassword, setShowNewPassword] = useState(false)
 const [newRoleId, setNewRoleId] = useState('')
 const [creatingUser, setCreatingUser] = useState(false)
   const [roles, setRoles] = useState<Role[]>([])
@@ -221,13 +222,23 @@ const [creatingUser, setCreatingUser] = useState(false)
       className="border px-3 py-2 rounded"
     />
 
-    <input
-      type="password"
-      placeholder="Initial Password"
-      value={newPassword}
-      onChange={(e) => setNewPassword(e.target.value)}
-      className="border px-3 py-2 rounded"
-    />
+        <div className="relative">
+      <input
+        type={showNewPassword ? 'text' : 'password'}
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        className="w-full border border-gray-300 p-2 rounded pr-12"
+        required
+      />
+
+      <button
+        type="button"
+        onClick={() => setShowNewPassword(!showNewPassword)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sky-700 hover:underline"
+      >
+        {showNewPassword ? 'Hide' : 'Show'}
+      </button>
+    </div>
 
     <select
       value={newRoleId}

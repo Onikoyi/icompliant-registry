@@ -42,6 +42,19 @@ export async function proxy(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  let mustResetPassword = false
+
+if (user) {
+
+  const { data: appUser } = await supabase
+    .from('users')
+    .select('must_reset_password')
+    .eq('id', user.id)
+    .single()
+
+  mustResetPassword = appUser?.must_reset_password === true
+}
+
   const publicRoutes = [
     '/login',
     '/forgot-password',
@@ -54,6 +67,16 @@ export async function proxy(req: NextRequest) {
   
   if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', req.url))
+  }
+
+  // 🔥 FORCE PASSWORD RESET
+  if (
+    user &&
+    mustResetPassword &&
+    !pathname.startsWith('/reset-password') &&
+    !pathname.startsWith('/api/')
+  ) {
+    return NextResponse.redirect(new URL('/reset-password', req.url))
   }
   
   if (user && pathname.startsWith('/login')) {

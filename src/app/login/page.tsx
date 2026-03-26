@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -96,15 +97,25 @@ export default function LoginPage() {
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Password
             </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              className="w-full border border-sky-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                className="w-full border border-sky-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 pr-12"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sky-700 hover:underline"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
                <div className="text-right">

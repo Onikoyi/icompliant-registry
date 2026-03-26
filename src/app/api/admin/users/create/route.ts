@@ -51,6 +51,7 @@ export async function POST(req: Request) {
         id: authUserId,
         email,
         role_id,
+        must_reset_password: true,
       })
 
     if (insertError) {

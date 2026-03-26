@@ -1,8 +1,10 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase/server'
 
-async function getStudents() {
-  const { data, error } = await supabase
+async function getStudents(search?: string) {
+  const supabase = await createServerClient()
+
+  let query = supabase
     .from('students')
     .select(`
       id,
@@ -16,15 +18,36 @@ async function getStudents() {
     `)
     .order('created_at', { ascending: false })
 
+  const { data, error } = await query
+
   if (error) {
     throw new Error(error.message)
   }
 
-  return data ?? []
+  // If no search → return full dataset
+  if (!search || search.trim() === '') {
+    return data ?? []
+  }
+
+  const lower = search.toLowerCase()
+
+  return (
+    data?.filter((student: any) =>
+      student.matric_number?.toLowerCase().includes(lower) ||
+      student.owners?.full_name?.toLowerCase().includes(lower)
+    ) ?? []
+  )
 }
 
-export default async function StudentsPage() {
-  const students = await getStudents()
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>
+}) {
+  const resolvedSearchParams = await searchParams
+  const search = resolvedSearchParams?.search?.trim() || ''
+
+  const students = await getStudents(search)
 
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6 bg-white shadow rounded">
@@ -39,6 +62,32 @@ export default async function StudentsPage() {
         </Link>
       </div>
 
+      {/* 🔎 SEARCH */}
+      <form className="mb-6 flex gap-3">
+        <input
+          type="text"
+          name="search"
+          defaultValue={search}
+          placeholder="Search by name or matric number..."
+          className="border border-gray-300 px-4 py-2 rounded w-80"
+        />
+        <button
+          type="submit"
+          className="bg-sky-700 text-white px-4 py-2 rounded"
+        >
+          Search
+        </button>
+
+        {search && (
+          <Link
+            href="/students"
+            className="px-4 py-2 bg-gray-200 rounded text-sm"
+          >
+            Clear
+          </Link>
+        )}
+      </form>
+
       <table className="w-full border-collapse border">
         <thead>
           <tr className="bg-gray-100 text-left">
@@ -50,24 +99,29 @@ export default async function StudentsPage() {
         </thead>
 
         <tbody>
-          {students.map((student: any) => (
-            <tr
-              key={student.id}
-              className="hover:bg-gray-50 cursor-pointer"
-            >
-              <td className="p-3 border">
-                <Link
-                  href={`/students/${student.id}`}
-                  className="text-blue-600 font-medium"
-                >
-                  {student.owners?.full_name}
-                </Link>
+          {students.length > 0 ? (
+            students.map((student: any) => (
+              <tr key={student.id} className="hover:bg-gray-50">
+                <td className="p-3 border">
+                  <Link
+                    href={`/students/${student.id}`}
+                    className="text-blue-600 font-medium"
+                  >
+                    {student.owners?.full_name}
+                  </Link>
+                </td>
+                <td className="p-3 border">{student.matric_number}</td>
+                <td className="p-3 border">{student.level}</td>
+                <td className="p-3 border">{student.admission_year}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={4} className="p-4 text-center text-gray-500">
+                No students found.
               </td>
-              <td className="p-3 border">{student.matric_number}</td>
-              <td className="p-3 border">{student.level}</td>
-              <td className="p-3 border">{student.admission_year}</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

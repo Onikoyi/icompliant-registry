@@ -39,8 +39,8 @@ export default function BrandHeader() {
           {/* USER */}
           <div className="text-right text-white text-sm">
             <p className="font-semibold">
-              {user?.id ? `User: ${user.id.slice(0, 8)}…` : 'Guest'}
-            </p>
+            {user?.email ? user.email.split('@')[0] : 'Guest'}
+          </p>
           </div>
 
           {/* LOGOUT */}
