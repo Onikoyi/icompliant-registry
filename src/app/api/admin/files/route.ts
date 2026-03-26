@@ -47,17 +47,22 @@ export async function GET(req: Request) {
       // Search by reference_code or title (ilike)
       query = query.or(`reference_code.ilike.%${q}%,title.ilike.%${q}%`)
     }
+    
 
     const { data, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({ files: data || [] })
-  } catch (err: any) {
+  } 
+  
+  
+  catch (err: any) {
     const msg = err?.message || 'Internal server error'
     if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (msg.startsWith('Forbidden:')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     return NextResponse.json({ error: msg }, { status: 500 })
   }
+  
 }
 
 export async function POST(req: Request) {
