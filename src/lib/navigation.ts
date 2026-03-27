@@ -22,4 +22,12 @@ export const NAV_ITEMS = [
   { label: 'Files Registry', path: '/admin/files', permission: 'file.view' },
   
   { label: 'Approval Queue', path: '/admin/documents/approvals', permission: 'document.approve' },
+
+  { label: 'Student Import (CSV)', path: '/admin/imports/students', permission: 'import.manage' },
+
+  { label: 'Staff Import (CSV)', path: '/admin/imports/staff', permission: 'import.manage' },
+
+  { label: 'Imports', path: '/admin/imports', permission: 'import.manage' },
+
+  { label: 'Document Scan Import', path: '/admin/imports/documents', permission: 'import.manage' },
 ]

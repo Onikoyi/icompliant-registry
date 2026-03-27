@@ -9,6 +9,8 @@ function asBool(v: any): boolean {
   return v === true || v === 'true' || v === 1 || v === '1'
 }
 
+
+
 function normalizeAppliesTo(v: any): AppliesTo | null {
   const s = String(v ?? '').trim().toLowerCase()
   if (s === 'student' || s === 'staff' || s === 'both') return s
@@ -23,6 +25,13 @@ function normalizeText(v: any): string | null {
 function normalizeUuid(v: any): string | null {
   const s = String(v ?? '').trim()
   return s ? s : null
+}
+
+function getIdFromUrl(req: Request): string {
+  const url = new URL(req.url)
+  const parts = url.pathname.split('/').filter(Boolean)
+  const idx = parts.findIndex((p) => p === 'document-types')
+  return String(idx >= 0 ? parts[idx + 1] : '').trim()
 }
 
 function validateExpiry(expiry_required: boolean, expiry_days: any) {
@@ -40,10 +49,8 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   try {
     const { user } = await requirePermission('document_type.manage')
 
-    const id = String(ctx?.params?.id ?? '').trim()
-    if (!id) {
-      return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-    }
+    const id = getIdFromUrl(req)
+if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
     const body = await req.json()
     const admin = createAdminClient()

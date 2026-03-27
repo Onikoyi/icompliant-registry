@@ -22,5 +22,6 @@ insert into permissions (code, description) values
 ('org.manage', 'Manage campuses, faculties and departments'),
 ('file.view', 'View registry files'),
 ('file.manage', 'Manage registry files'),
+('import.manage', 'Manage bulk imports (CSV/API)'),
 
 on conflict (code) do nothing;

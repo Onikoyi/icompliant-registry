@@ -173,6 +173,17 @@ export default function DocumentTypesPage() {
         is_active: form.is_active,
       }
 
+      const isEditing = Boolean(editingId)
+
+      if (editingId && typeof editingId !== 'string') {
+        setError('Invalid document type id')
+        return
+      }
+      if (editingId === 'undefined' || editingId === 'null') {
+        setError('Cannot update: invalid document type id')
+        return
+      }
+
       const res = await fetch(
         editingId ? `/api/admin/document-types/${editingId}` : '/api/admin/document-types',
         {
