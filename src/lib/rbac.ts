@@ -21,7 +21,7 @@ export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser> {
     throw new Error('Unauthorized')
   }
 
-  const admin = createAdminClient()
+  const admin =  createAdminClient()
 
   const { data, error } = await admin
     .from('users')
@@ -87,7 +87,7 @@ export async function getCurrentUserWithPermissions() {
     throw new Error('Unauthorized')
   }
 
-  const admin = createAdminClient()
+  const admin =  createAdminClient()
 
   // Get user basic info
   const { data: appUser, error: userError } = await admin

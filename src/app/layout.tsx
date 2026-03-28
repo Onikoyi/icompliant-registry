@@ -4,6 +4,7 @@ import BrandHeader from '@/components/layout/BrandHeader'
 import AppFooter from '@/components/layout/AppFooter'
 import Sidebar from '@/components/layout/Sidebar'
 import { createServerClient } from '@/lib/supabase/server'
+import { getCurrentUserWithPermissions } from '@/lib/rbac'
 
 export const metadata = {
   title: 'Digital Registry',
@@ -17,13 +18,18 @@ export default async function RootLayout({
 }: {
   children: ReactNode
 }) {
-  const supabase = await createServerClient()
+  let user = null
+let permissions: string[] = []
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+try {
+  const authData = await getCurrentUserWithPermissions()
+  user = authData.user
+  permissions = authData.permissions
+} catch (error) {
+  // Not logged in — safe fallback
+}
 
-  const isLoggedIn = !!user
+const isLoggedIn = !!user
 
   return (
     <html lang="en">
@@ -36,7 +42,7 @@ export default async function RootLayout({
 
             <div className="flex flex-1 max-w-7xl mx-auto w-full">
               <div className="hidden md:block">
-                <Sidebar />
+              <Sidebar permissions={permissions} />
               </div>
 
               <main className="flex-1 px-4 md:px-6 py-6">{children}</main>

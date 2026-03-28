@@ -5,9 +5,12 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { NAV_ITEMS } from '@/lib/navigation'
 
-export default function Sidebar() {
+export default function Sidebar({
+  permissions = [],
+}: {
+  permissions?: string[]
+}) {
   const pathname = usePathname()
-  const { permissions = [] } = useAuth()
 
   const linkClass = (path: string) =>
     `block px-4 py-2 rounded-md text-sm font-medium transition ${

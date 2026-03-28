@@ -1,9 +1,12 @@
 'use client'
 
 import { useAuth } from '@/hooks/useAuth'
+import NotificationBell from '@/components/layout/NotificationBell'
 
 export default function BrandHeader() {
   const { user } = useAuth()
+
+  
 
   function handleLogout() {
     // ✅ Hard redirect to server-side logout to clear cookies + remove shell immediately
@@ -39,10 +42,11 @@ export default function BrandHeader() {
           {/* USER */}
           <div className="text-right text-white text-sm">
             <p className="font-semibold">
+           
             {user?.email ? user.email.split('@')[0] : 'Guest'}
           </p>
           </div>
-
+           <NotificationBell /> 
           {/* LOGOUT */}
           <button
             onClick={handleLogout}

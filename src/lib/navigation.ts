@@ -30,4 +30,10 @@ export const NAV_ITEMS = [
   { label: 'Imports', path: '/admin/imports', permission: 'import.manage' },
 
   { label: 'Document Scan Import', path: '/admin/imports/documents', permission: 'import.manage' },
+
+  {label: 'Document Approval Pipeline', path: '/admin/document-approval-pipeline',permission: 'document.approve'},
+
+  {label: 'Audit Logs', path: '/admin/audit-logs', permission: 'config.manage'},
+
+  
 ]
